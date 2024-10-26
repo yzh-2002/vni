@@ -4,6 +4,7 @@
         "init.h": "c",
         "netfilter_ipv4.h": "c",
         "netlink.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "pcap.h": "c"
     }
 }

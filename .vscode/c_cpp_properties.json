@@ -9,7 +9,8 @@
                 "/usr/src/linux-headers-6.5.0-28-generic/arch/x86/include/",
                 "/usr/src/linux-headers-6.5.0-28-generic/arch/x86/include/generated/",
                 "/usr/src/linux-hwe-6.5-headers-6.5.0-28/arch/**/include/",
-                "/usr/src/linux-hwe-6.5-headers-6.5.0-28/include/"
+                "/usr/src/linux-hwe-6.5-headers-6.5.0-28/include/",
+                "/usr/include/"
             ],
             "defines": ["__KERNEL__","MODULE"],
             "compilerPath": "/usr/bin/gcc",
