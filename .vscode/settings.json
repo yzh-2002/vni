@@ -2,6 +2,8 @@
     "files.associations": {
         "module.h": "c",
         "init.h": "c",
-        "netfilter_ipv4.h": "c"
+        "netfilter_ipv4.h": "c",
+        "netlink.h": "c",
+        "types.h": "c"
     }
 }
