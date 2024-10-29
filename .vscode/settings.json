@@ -5,6 +5,13 @@
         "netfilter_ipv4.h": "c",
         "netlink.h": "c",
         "types.h": "c",
-        "pcap.h": "c"
+        "pcap.h": "c",
+        "inet.h": "c",
+        "features.h": "c",
+        "in.h": "c",
+        "proc_fs.h": "c",
+        "timer.h": "c",
+        "timekeeping.h": "c",
+        "time.h": "c"
     }
 }

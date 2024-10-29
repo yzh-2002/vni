@@ -1,4 +1,4 @@
-obj-m += hello-kernel.o
+obj-m += vni.o
 CURRENT_PATH:=$(shell pwd)
 LINUX_KERNEL:=$(shell uname -r)
 LINUX_KERNEL_PATH:=/usr/src/linux-headers-$(LINUX_KERNEL)
