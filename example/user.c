@@ -265,7 +265,8 @@ int main(int argc, char **argv)
         // 发送0xf4f0数据包
         int id = 0;
         printf("this is sniffer\n");
-        /*capture the packet until occure error*/
+        // 无限捕获数据包直至出错
+        // 每捕获一个数据包便调用ethernet_callback函数
         pcap_loop(pcap, -1, ethernet_callback, (u_char *)&id);
 
         pcap_close(pcap);

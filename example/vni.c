@@ -39,7 +39,6 @@
 
 // netlink
 struct sock *nlsk = NULL;
-char *vni_msg = "this is vni module";
 
 // vni-timer
 struct timer_list vni_timer;
@@ -52,9 +51,9 @@ static struct net_device *vni_dev = NULL;
 // VNI结构体
 static struct VNI_ethhdr
 {
-    // 学号字段信息：0124
+    // 学号字段信息：1204
     unsigned char student[4];
-    // VNI分组 程序中设置为 ABCD 便于测试观察
+    // VNI分组 
     unsigned short vnid;
 };
 
@@ -79,13 +78,7 @@ unsigned char eth_rcv[256];
 unsigned char smac[6] = {0x04, 0x33, 0xc2, 0x88, 0xd9, 0x4d};
 unsigned char dmac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-/*
-*********************************************
-*
-* 向用户空间发送数据
-*
-*********************************************
-*/
+
 int send_usrmsg(char *pbuf, uint16_t len)
 {
     struct sk_buff *nl_skb;
@@ -117,43 +110,25 @@ int send_usrmsg(char *pbuf, uint16_t len)
     return ret;
 }
 
-/*
-*********************************************
-*
-* VNI定时器，定时60s打印统计信息
-* 发送至用户空间
-*
-*********************************************
-*/
+
 static void timer_handle(struct timer_list *tls)
 {
     unsigned char buf[128];
-    // 统计频率 2*cnt.如2*5=10s,每10s统计一次
+    // 每10s统计一次VNI数据包收发次数并发送给用户态程序
     if (++cnt >= 5)
     {
         // 发送消息数增加
         nl_cnt++;
-
-        // 10 s到
-        printk("vni:%s,cnt:%d", vni_msg, nl_cnt);
-
-        // id*10代表经过的时间
         sprintf(buf, "%4d %4d %4d", nl_cnt, vni_states.vni_tx_packets,
                 vni_states.vni_rx_packets);
 
         send_usrmsg(buf, strlen(buf));
         cnt = 0;
     }
-
     mod_timer(&vni_timer, jiffies + 2 * HZ);
 }
-/*
-*********************************************
-*
-*去掉数据包的VNI头部
-*
-*********************************************
-*/
+
+
 static void VNI_Reader(const unsigned char *buf)
 {
     int i = 0;
@@ -218,13 +193,7 @@ static void VNI_Reader(const unsigned char *buf)
     netif_rx(new_skb);
 }
 
-/*
-*********************************************
-*
-* netlink数据处理回调函数
-*
-*********************************************
-*/
+
 static void netlink_rcv_msg(struct sk_buff *skb)
 {
     struct nlmsghdr *nlh = NULL;
@@ -237,90 +206,12 @@ static void netlink_rcv_msg(struct sk_buff *skb)
         umsg = NLMSG_DATA(nlh);
         if (umsg)
         {
-            printk("msg:%d", nlh->nlmsg_len);
-            for (i = 0; i < 90; i++)
-            {
-                // printk("%02x-",umsg[i]);
-                eth_rcv[i] = umsg[i];
-                // if ((i + 1) % 16 == 0)
-                // {
-                // printk(" ");
-                // }
-            }
             // 数据包处理，去掉VNI头部
             VNI_Reader(eth_rcv);
         }
     }
 }
 
-/*
-*********************************************
-*
-* 进入本地数据的钩子处理函数
-* 如果能从内核抓取以太网数据包，可直接调用此函数
-* 处理，但没有实现netfilter 二层抓包
-* 尝试利用 netfilter-bridge,但始终没有成功
-*
-*********************************************
-*/
-static unsigned int
-VNI_HookLocalIN(void *priv, struct sk_buff *skb,
-                const struct nf_hook_state *state)
-{
-    // 从eth0获取数据
-    int ret = 0;
-    int i = 0;
-    struct net_device *dev = NULL;
-
-    struct ethhdr *eth = eth_hdr(skb);
-    struct iphdr *iphdr = ip_hdr(skb);
-    // 打印ip地址
-    printk("ipsaddr:%08x,daddr:%08x", iphdr->saddr, iphdr->daddr);
-
-    // 打印mac地址
-    printk("dmac:");
-    for (i = 0; i < ETH_ALEN - 1; i++)
-    {
-        printk("%02x-", eth->h_dest[i]);
-    }
-    printk("%02x", eth->h_dest[ETH_ALEN - 1]);
-    printk("smac");
-    for (i = 0; i < ETH_ALEN - 1; i++)
-    {
-        printk("%02x-", eth->h_source[i]);
-    }
-    printk("%02x", eth->h_source[ETH_ALEN - 1]);
-
-    // 检测到vni分组
-    if (iphdr->protocol == 0xf4f0)
-    {
-        printk("F4f0 LOCAL IN\n");
-        // 去掉VNI分组*/
-        memmove(skb->data, skb->data + 6, 14);
-        // mac_header指向当前位置
-        skb->mac_header += 6;
-        skb_pull(skb, 6);
-
-        dev = dev_get_by_name(&init_net, "vni0");
-        skb->dev = dev;
-        // 向上提交数据
-        netif_rx(skb);
-        ret = NF_STOLEN;
-    }
-    else
-    {
-        ret = NF_ACCEPT;
-    }
-
-    return ret;
-}
-/*
-*********************************************
-*
-* 本地发出数据的钩子处理函数
-*
-*********************************************
-*/
 
 static unsigned int
 VNI_HookLocalOUT(void *priv, struct sk_buff *skb,
@@ -401,10 +292,10 @@ VNI_HookLocalOUT(void *priv, struct sk_buff *skb,
     vni = (struct VNI_ethhdr *)p;
     // memmove(skb->data,skb->data+6, ETH_HLEN);
 
-    vni->student[0] = 0x00;
-    vni->student[1] = 0x01;
-    vni->student[2] = 0x02;
-    vni->student[3] = 0x04;
+    vni->student[0] = 0x01;
+    vni->student[1] = 0x02;
+    vni->student[2] = 0x04;
+    vni->student[3] = 0x00;
     vni->vnid = htons(0xABCD);
 
     eth = (struct ethhdr *)skb_push(skb, sizeof(struct ethhdr));
@@ -438,21 +329,7 @@ out:
     return NF_STOLEN;
 }
 
-/*
-*********************************************
-*
-* nf钩子挂接结构
-*
-*********************************************
-*/
 static struct nf_hook_ops VNI_hooks[] = {
-    // netfilter-bridge 二层HOOK
-    {
-        .hook = VNI_HookLocalIN,
-        .pf = PF_BRIDGE,
-        .hooknum = NF_BR_PRE_ROUTING,
-        .priority = NF_BR_PRI_FIRST,
-    },
     // netfilter-iptables IP层HOOK
     {
         .hook = VNI_HookLocalOUT,
@@ -466,67 +343,35 @@ struct netlink_kernel_cfg cfg = {
 };
 
 static const struct net_device_ops vni_dev_ops = {
-    // .ndo_start_xmit = virt_net_send_packet,
+    // .ndo_start_xmit = ,
 };
 
-/*
-*********************************************
-* *****VNI模块加载函数
-*********************************************
-*/
 static int __init VNI_init(void)
 {
-    /*
-    *********************************************
-    * netlink通信接口建立
-    *********************************************
-    */
     nlsk = (struct sock *)netlink_kernel_create(&init_net, NETLINK_TEST, &cfg);
     if (nlsk == NULL)
     {
         printk("netlink_kernel_create error !\n");
         return -1;
     }
-
-    /*
-     *********************************************
-     * 内核定时器
-     *********************************************
-     */
+    // 设置一个定时器，每隔2s触发一次，触发时调用timer_handle
     timer_setup(&vni_timer, timer_handle, 0);
-    // do_settimeofday64(&oldtv);
     vni_timer.expires = jiffies + 2 * HZ;
     add_timer(&vni_timer);
 
-    /*
-     *********************************************
-     **VNI接口建立
-     *********************************************
-     */
-    // 分配一个net_device结构体
+    // 注册vni0
     vni_dev = alloc_netdev(0, "vni%d", 'e', ether_setup);
-    // 设置
     vni_dev->netdev_ops = &vni_dev_ops;
     vni_dev->flags |= IFF_NOARP;
     vni_dev->features |= 0x4;
-    // 注册
     register_netdev(vni_dev);
 
-    /*
-     *********************************************
-     * netfilter 钩子函数注册
-     *********************************************
-     */
+    // 注册netfilter hook函数
     nf_register_net_hooks(&init_net, VNI_hooks, ARRAY_SIZE(VNI_hooks));
 
     return 0;
 }
 
-/*
-*********************************************
-* *****VNI模块卸载函数
-*********************************************
-*/
 static void __exit VNI_exit(void)
 {
     nf_unregister_net_hooks(&init_net, VNI_hooks, ARRAY_SIZE(VNI_hooks));
@@ -544,14 +389,7 @@ static void __exit VNI_exit(void)
     printk("vni_exit!\n");
 }
 
-/*
- *********************************************
- * VNI模块注册
- *********************************************
- */
 module_init(VNI_init);
 module_exit(VNI_exit);
 
 MODULE_LICENSE("GPL V2");
-MODULE_AUTHOR("Ming");
-MODULE_DESCRIPTION("vni example");
